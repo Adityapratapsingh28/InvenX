@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse Distribution System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+             body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f9fafb;
+            color: #374151;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #1f2937;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
+            color: #4b5563;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            background-color: white;
+            font-size: 1rem;
+            color: #374151;
+        }
+
+        button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+
+        .button-generate-all {
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+
+        .button-calculate {
+            background-color: #10b981;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .button-calculate:hover {
+            background-color: #059669;
+        }
+
+        .back-button {
+            background-color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-button:hover {
+            background-color: #4b5563;
+        }
+
+        .charts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-wrapper {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+
+        .chart-wrapper canvas {
+            height: 400px !important;
+        }
+        .stock-input-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stock-input-table th,
+        .stock-input-table td {
+            border: 1px solid #e5e7eb;
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .stock-input-table th {
+            background-color: #f9fafb;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .stock-input-table input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .distribution-results {
+            margin-top: 2rem;
+        }
+
+        .distribution-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+            background: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .distribution-table th,
+        .distribution-table td {
+            border: 1px solid #e5e7eb;
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .distribution-table th {
+            background-color: #f9fafb;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .surplus-positive {
+            color: #10b981;
+        }
+
+        .surplus-negative {
+            color: #ef4444;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            font-style: italic;
+            color: #6b7280;
+            display: none;
+        }
+
+        .error {
+            background-color: #fee2e2;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Back Button -->
+        <button class="back-button" onclick="window.location.href='/'">← Back to Home</button>
+
+        <h1>Warehouse Distribution System</h1>
+
+        <div class="form-group">
+            <label for="days">Forecast Days:</label>
+            <select id="days">
+                <option value="10">10 Days</option>
+                <option value="20">20 Days</option>
+                <option value="30">30 Days</option>
+                <option value="40">40 Days</option>
+            </select>
+        </div>
+
+        <button class="button-generate-all" onclick="generateAllForecasts()">Generate All Warehouses Forecast</button>
+
+        <div id="loading" class="loading">Generating forecasts...</div>
+        <div id="error" class="error"></div>
+
+        <!-- Charts Container -->
+        <div id="chartsContainer" class="charts-container"></div>
+
+        <!-- Stock Input Table -->
+        <div id="stockInputContainer" style="display: none;">
+            <h2>Current Stock Levels</h2>
+            <table class="stock-input-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Warehouse 1</th>
+                        <th>Warehouse 2</th>
+                        <th>Warehouse 3</th>
+                        <th>Warehouse 4</th>
+                    </tr>
+                </thead>
+                <tbody id="stockInputBody"></tbody>
+            </table>
+
+            <button class="button-calculate" onclick="calculateDistribution()">Calculate Distribution</button>
+        </div>
+
+        <!-- Distribution Results -->
+        <div id="distributionResults" class="distribution-results" style="display: none;">
+            <h2>Distribution Results</h2>
+            <div id="distributionTableContainer"></div>
+        </div>
+
+        <!-- AI Recommendations -->
+        <div id="aiRecommendations" class="mt-6 bg-gray-50 p-4 rounded-lg" style="display: none;">
+            <h2 class="text-xl font-semibold mb-2">AI Recommendations</h2>
+            <div id="recommendationsContent" class="text-gray-700"></div>
+        </div>
+    </div>
+    <script>
+        async function getAIRecommendations(transferDetails) {
+            try {
+                const response = await axios.post('/ai-recommendations', {
+                    transfer_details: transferDetails
+                });
+
+                if (response.data.recommendations) {
+                    document.getElementById('recommendationsContent').innerText = response.data.recommendations;
+                    document.getElementById('aiRecommendations').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error fetching AI recommendations:', error);
+            }
+        }
+
+        async function storeLocations() {
+            const locations = {};
+
+            // Clear existing markers
+            warehouseMarkers.forEach(marker => leafletMap.removeLayer(marker));
+            warehouseMarkers = [];
+
+            for (let i = 1; i <= 4; i++) {
+                const input = document.getElementById(`warehouse${i}`).value;
+
+                try {
+                    const response = await axios.get(`/geocode?location=${encodeURIComponent(input)}`);
+                    const [lat, lon] = response.data.coordinates.split(',');
+
+                    locations[`Warehouse${i}`] = {
+                        name: `Warehouse${i}`,
+                        coordinates: response.data.coordinates,
+                        formatted_address: response.data.formatted_address,
+                        lat: parseFloat(lat),
+                        lon: parseFloat(lon)
+                    };
+
+                    // Add marker to map
+                    const marker = L.marker([lat, lon])
+                        .addTo(leafletMap)
+                        .bindPopup(`<b>Warehouse ${i}</b><br>${response.data.formatted_address}`);
+                    warehouseMarkers.push(marker);
+                } catch (error) {
+                    alert(`Error geocoding Warehouse ${i}: ${error.message}`);
+                    return;
+                }
+            }
+
+            try {
+                const storeResponse = await axios.post('/store-warehouse-locations', locations);
+                alert(storeResponse.data.message);
+                warehouseLocations = locations;
+
+                // Fit map to markers
+                const group = new L.featureGroup(warehouseMarkers);
+                leafletMap.fitBounds(group.getBounds(), { padding: [50, 50] });
+
+            } catch (error) {
+                alert(`Error storing locations: ${error.message}`);
+            }
+        }
+
+
+        // Distance matrix for warehouses (in km)
+        const DISTANCE_MATRIX = {
+            'Warehouse1': { 'Warehouse1': 0, 'Warehouse2': 100, 'Warehouse3': 200, 'Warehouse4': 300 },
+            'Warehouse2': { 'Warehouse1': 100, 'Warehouse2': 0, 'Warehouse3': 150, 'Warehouse4': 250 },
+            'Warehouse3': { 'Warehouse1': 200, 'Warehouse2': 150, 'Warehouse3': 0, 'Warehouse4': 100 },
+            'Warehouse4': { 'Warehouse1': 300, 'Warehouse2': 250, 'Warehouse3': 100, 'Warehouse4': 0 }
+        };
+
+        const TRANSPORT_COST_PER_KM = 0.5;
+
+        function calculateTransferCost(source, destination, quantity) {
+            const distance = DISTANCE_MATRIX[source][destination];
+            return distance * TRANSPORT_COST_PER_KM * quantity;
+        }
+
+        function recommendStockTransfers(distribution) {
+            const transfers = {};
+
+            products.forEach(product => {
+                transfers[product] = [];
+
+                // Find warehouses with surplus and deficit
+                const surplusWarehouses = warehouses.filter(
+                    w => distribution.surplus[product][w] > 0
+                );
+
+                const deficitWarehouses = warehouses.filter(
+                    w => distribution.surplus[product][w] < 0
+                );
+
+                deficitWarehouses.forEach(deficitWarehouse => {
+                    const deficitAmount = Math.abs(distribution.surplus[product][deficitWarehouse]);
+
+                    // Find best source warehouse with minimum transfer cost
+                    const bestSource = surplusWarehouses.reduce((best, source) => {
+                        const currentCost = calculateTransferCost(source, deficitWarehouse, deficitAmount);
+                        const bestCost = best ? calculateTransferCost(best, deficitWarehouse, deficitAmount) : Infinity;
+
+                        return currentCost < bestCost ? source : best;
+                    }, null);
+
+                    if (bestSource) {
+                        transfers[product].push({
+                            from: bestSource,
+                            to: deficitWarehouse,
+                            quantity: deficitAmount,
+                            cost: calculateTransferCost(bestSource, deficitWarehouse, deficitAmount)
+                        });
+                    }
+                });
+            });
+
+            return transfers;
+        }
+
+        function displayDistributionResults(distribution) {
+            const container = document.getElementById('distributionTableContainer');
+            container.innerHTML = '';
+
+            // Create distribution table
+            const distributionTable = document.createElement('table');
+            distributionTable.className = 'distribution-table';
+
+            // Create header
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = `
+        <th>Product</th>
+        ${warehouses.map(w => `<th>${w}</th>`).join('')}
+        <th>Additional Order Needed</th>
+    `;
+            thead.appendChild(headerRow);
+            distributionTable.appendChild(thead);
+
+            // Create body
+            const tbody = document.createElement('tbody');
+            products.forEach(product => {
+                const row = document.createElement('tr');
+
+                // Product name
+                row.innerHTML = `<td>${product}</td>`;
+
+                // Warehouse data
+                warehouses.forEach(warehouse => {
+                    const required = distribution.requiredStock[product][warehouse];
+                    const surplus = distribution.surplus[product][warehouse];
+                    const surplusClass = surplus >= 0 ? 'surplus-positive' : 'surplus-negative';
+
+                    row.innerHTML += `
+                <td>
+                    <div>Required: ${required}</div>
+                    <div class="${surplusClass}">Surplus: ${surplus}</div>
+                </td>
+            `;
+                });
+
+                // Order needed
+                row.innerHTML += `<td>${distribution.orderNeeded[product]}</td>`;
+
+                tbody.appendChild(row);
+            });
+            distributionTable.appendChild(tbody);
+
+            // Add distribution table to container
+            container.appendChild(distributionTable);
+
+            // Create transfer recommendations table
+            const transferRecommendations = recommendStockTransfers(distribution);
+
+            const transferTable = document.createElement('table');
+            transferTable.className = 'distribution-table';
+            transferTable.innerHTML = `
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>From Warehouse</th>
+                <th>To Warehouse</th>
+                <th>Quantity</th>
+                <th>Transfer Cost ($)</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${products.flatMap(product =>
+                transferRecommendations[product].map(transfer => `
+                    <tr>
+                        <td>${product}</td>
+                        <td>${transfer.from}</td>
+                        <td>${transfer.to}</td>
+                        <td>${transfer.quantity}</td>
+                        <td>$${transfer.cost.toFixed(2)}</td>
+                    </tr>
+                `).join('')
+            ).join('') || '<tr><td colspan="5">No transfers needed</td></tr>'}
+        </tbody>
+    `;
+
+            // Add transfer table to container
+            container.appendChild(transferTable);
+
+            // Show distribution results
+            document.getElementById('distributionResults').style.display = 'block';
+        }
+        let allForecasts = {};
+        const warehouses = ['Warehouse1', 'Warehouse2', 'Warehouse3', 'Warehouse4'];
+        const products = ['Product_0349', 'Product_2167', 'Product_0191', 'Product_1342', 'Product_1432'];
+        let charts = {};
+
+        async function generateAllForecasts() {
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const stockInputContainer = document.getElementById('stockInputContainer');
+
+            loadingDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            stockInputContainer.style.display = 'none';
+
+            try {
+                const days = document.getElementById('days').value;
+
+                // Clear existing charts
+                document.getElementById('chartsContainer').innerHTML = '';
+                charts = {};
+
+                for (const warehouse of warehouses) {
+                    const response = await fetch('/forecast', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ warehouse, days })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Failed to get forecast for ${warehouse}`);
+                    }
+
+                    const data = await response.json();
+                    allForecasts[warehouse] = data;
+
+                    // Create chart for this warehouse
+                    createWarehouseChart(warehouse, data);
+                }
+
+                // Show stock input table
+                createStockInputTable();
+                stockInputContainer.style.display = 'block';
+
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+
+        function createWarehouseChart(warehouse, data) {
+            const chartsContainer = document.getElementById('chartsContainer');
+
+            const chartWrapper = document.createElement('div');
+            chartWrapper.className = 'chart-wrapper';
+
+            const canvas = document.createElement('canvas');
+            canvas.id = `chart-${warehouse}`;
+            chartWrapper.appendChild(canvas);
+            chartsContainer.appendChild(chartWrapper);
+
+            const ctx = canvas.getContext('2d');
+            const datasets = Object.entries(data.predictions).map(([product, values], index) => ({
+                label: product,
+                data: values.map(value => Math.round(value)),
+                borderColor: getColor(index),
+                fill: false,
+                tension: 0.1
+            }));
+
+            charts[warehouse] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${warehouse} Forecast`
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Demand'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStockInputTable() {
+            const tbody = document.getElementById('stockInputBody');
+            tbody.innerHTML = '';
+
+            products.forEach(product => {
+                const row = document.createElement('tr');
+
+                const productCell = document.createElement('td');
+                productCell.textContent = product;
+                row.appendChild(productCell);
+
+                warehouses.forEach(warehouse => {
+                    const cell = document.createElement('td');
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.min = '0';
+                    input.id = `stock-${warehouse}-${product}`;
+                    input.className = 'stock-input';
+                    cell.appendChild(input);
+                    row.appendChild(cell);
+                });
+
+                tbody.appendChild(row);
+            });
+        }
+
+        async function calculateDistribution() {
+            const currentStocks = {};
+            warehouses.forEach(warehouse => {
+                currentStocks[warehouse] = {};
+                products.forEach(product => {
+                    const input = document.getElementById(`stock-${warehouse}-${product}`);
+                    currentStocks[warehouse][product] = parseInt(input.value) || 0;
+                });
+            });
+
+            try {
+                const response = await fetch('/optimize-distribution', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentStocks, forecasts: allForecasts })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to calculate distribution');
+                }
+
+                const distribution = await response.json();
+                displayDistributionResults(distribution);
+
+                // Get AI recommendations
+                const transferDetails = distribution.transfers;
+                getAIRecommendations(transferDetails);
+            } catch (error) {
+                document.getElementById('error').textContent = error.message;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function calculateOptimalDistribution(currentStocks, forecasts) {
+            const distribution = {
+                requiredStock: {},
+                surplus: {},
+                orderNeeded: {}
+            };
+
+            // Calculate total demand for each product in each warehouse
+            products.forEach(product => {
+                distribution.requiredStock[product] = {};
+                distribution.surplus[product] = {};
+                distribution.orderNeeded[product] = 0;
+
+                let totalRequired = 0;
+                let totalCurrentStock = 0;
+
+                warehouses.forEach(warehouse => {
+                    const demands = forecasts[warehouse].predictions[product] || [];
+                    const required = Math.round(demands.reduce((sum, demand) => sum + demand, 0));
+                    const current = currentStocks[warehouse][product] || 0;
+
+                    distribution.requiredStock[product][warehouse] = required;
+                    distribution.surplus[product][warehouse] = current - required;
+
+                    totalRequired += required;
+                    totalCurrentStock += current;
+                });
+
+                distribution.orderNeeded[product] = Math.max(0, totalRequired - totalCurrentStock);
+            });
+
+            return distribution;
+        }
+
+        function displayDistributionResults(distribution) {
+            const container = document.getElementById('distributionTableContainer');
+            container.innerHTML = '';
+
+            // Create distribution table
+            const distributionTable = document.createElement('table');
+            distributionTable.className = 'distribution-table';
+
+            // Create header
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.innerHTML = `
+        <th>Product</th>
+        ${warehouses.map(w => `<th>${w}</th>`).join('')}
+        <th>Additional Order Needed</th>
+    `;
+            thead.appendChild(headerRow);
+            distributionTable.appendChild(thead);
+
+            // Create body
+            const tbody = document.createElement('tbody');
+            products.forEach(product => {
+                const row = document.createElement('tr');
+
+                // Product name
+                row.innerHTML = `<td>${product}</td>`;
+
+                // Warehouse data
+                warehouses.forEach(warehouse => {
+                    const required = distribution.requiredStock[product][warehouse];
+                    const surplus = distribution.surplus[product][warehouse];
+                    const surplusClass = surplus >= 0 ? 'surplus-positive' : 'surplus-negative';
+
+                    row.innerHTML += `
+                <td>
+                    <div>Required: ${required}</div>
+                    <div class="${surplusClass}">Surplus: ${surplus}</div>
+                </td>
+            `;
+                });
+
+                // Order needed
+                row.innerHTML += `<td>${distribution.orderNeeded[product]}</td>`;
+
+                tbody.appendChild(row);
+            });
+            distributionTable.appendChild(tbody);
+
+            // Add distribution table to container
+            container.appendChild(distributionTable);
+
+            // Create transfer recommendations table
+            const transferTable = document.createElement('table');
+            transferTable.className = 'distribution-table';
+            transferTable.innerHTML = `
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>From Warehouse</th>
+                <th>To Warehouse</th>
+                <th>Quantity</th>
+                <th>Transfer Cost ($)</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${products.flatMap(product =>
+                distribution.transfers[product].map(transfer => `
+                    <tr>
+                        <td>${product}</td>
+                        <td>${transfer.from}</td>
+                        <td>${transfer.to}</td>
+                        <td>${transfer.quantity}</td>
+                        <td>$${transfer.cost.toFixed(2)}</td>
+                    </tr>
+                `).join('')
+            ).join('') || '<tr><td colspan="5">No transfers needed</td></tr>'}
+        </tbody>
+    `;
+
+            // Add transfer table to container
+            container.appendChild(transferTable);
+
+            // Show distribution results
+            document.getElementById('distributionResults').style.display = 'block';
+        }
+
+        function getColor(index) {
+            const colors = [
+                '#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8'
+            ];
+            return colors[index % colors.length];
+        }
+    </script>
+</body>
+
+</html>
