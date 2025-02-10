@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import IBM Plex Mono font */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* Apply IBM Plex Mono font */
+@layer base {
+  .font-ibm-plex {
+    font-family: 'IBM Plex Mono', monospace !important;
+  }
+}
+
+@keyframes blurReveal {
+  0% {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  .animate-float-slow {
+    animation: float-slow 4s ease-in-out infinite;
+  }
+}
+
+.pixelated-image-card__pixel {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+}
+
+.pixel-transition {
+  position: absolute;
+  transform: scale(1.1);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity 0.2s ease-in-out;
+}
