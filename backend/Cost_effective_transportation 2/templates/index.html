@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Cost Calculator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background: #f9f9f9;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        h1, h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #4CAF50;
+            animation: slideIn 0.5s ease-in-out;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-top: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+            outline: none;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .report {
+            margin-top: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .error {
+            color: #dc3545;
+            padding: 10px;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin: 20px 0;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        table {
+            width: 100%;
+            margin: 20px 0;
+            border-collapse: collapse;
+        }
+
+        td, th {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #f8f9fa;
+        }
+
+        .total-row {
+            font-weight: bold;
+            background: #f8f9fa;
+        }
+
+        #map {
+            height: 400px;
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .location-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .location-input input {
+            flex: 3;
+        }
+
+        .location-input select {
+            flex: 1;
+        }
+
+        .info-text {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .route-comparison {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            animation: slideIn 0.5s ease-in-out;
+        }
+
+        .route-type {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .route-type:hover {
+            transform: scale(1.05);
+        }
+
+        .fastest-route {
+            background-color: rgba(255, 0, 0, 0.1);
+            border: 1px solid red;
+            color: red;
+        }
+
+        .eco-route {
+            background-color: rgba(0, 255, 0, 0.1);
+            border: 1px solid green;
+            color: green;
+        }
+
+        .route-summary {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            background: white;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .weather-icon {
+            width: 30px;
+            height: 30px;
+            vertical-align: middle;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚚 Delivery Cost Calculator</h1>
+        
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/calculate">
+            <div class="form-group">
+                <label for="vehicle">Vehicle Type:</label>
+                <select name="vehicle" id="vehicle" required>
+                    <option value="">Select Vehicle</option>
+                    <option value="truck" {% if form_data.get('vehicle') == 'truck' %}selected{% endif %}>Truck</option>
+                    <option value="van" {% if form_data.get('vehicle') == 'van' %}selected{% endif %}>Van</option>
+                    <option value="car" {% if form_data.get('vehicle') == 'car' %}selected{% endif %}>Car</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="fuel">Fuel Type:</label>
+                <select name="fuel" id="fuel" required>
+                    <option value="">Select Fuel</option>
+                    <option value="diesel" {% if form_data.get('fuel') == 'diesel' %}selected{% endif %}>Diesel</option>
+                    <option value="petrol" {% if form_data.get('fuel') == 'petrol' %}selected{% endif %}>Petrol</option>
+                    <option value="cng" {% if form_data.get('fuel') == 'cng' %}selected{% endif %}>CNG</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="start">Start Location:</label>
+                <div class="location-input">
+                    <input type="text" id="start" name="start" 
+                           value="{{ form_data.get('start', '') }}"
+                           placeholder="Enter city name (e.g., Delhi)" required>
+                </div>
+                <div class="info-text">Enter a city name and select the country</div>
+            </div>
+
+            <div class="form-group">
+                <label for="end">End Location:</label>
+                <div class="location-input">
+                    <input type="text" id="end" name="end" 
+                           value="{{ form_data.get('end', '') }}"
+                           placeholder="Enter city name (e.g., Mumbai)" required>
+                </div>
+                <div class="info-text">Enter a city name and select the country</div>
+            </div>
+
+            <button type="submit">Calculate Cost</button>
+        </form>
+
+        {% if report %}
+        <div class="report">
+            <h2>Delivery Cost Report</h2>
+            
+            <table>
+                <tr>
+                    <td>Start Location:</td>
+                    <td>{{ report.start }}</td>
+                </tr>
+                <tr>
+                    <td>End Location:</td>
+                    <td>{{ report.end }}</td>
+                </tr>
+                <tr>
+                    <td>Vehicle Type:</td>
+                    <td>{{ report.vehicle }}</td>
+                </tr>
+                <tr>
+                    <td>Fuel Type:</td>
+                    <td>{{ report.fuel }}</td>
+                </tr>
+                <tr>
+                    <td>Fuel Price:</td>
+                    <td>₹{{ report.fuel_price }} per {{ report.fuel_unit }}</td>
+                </tr>
+            </table>
+
+            <h3>Route Options</h3>
+            <div class="route-comparison">
+                <table>
+                    <tr>
+                        <th>Route Type</th>
+                        <th>Distance</th>
+                        <th>Estimated Time</th>
+                        <th>Traffic Conditions</th>
+                    </tr>
+                    <tr>
+                        <td><span class="route-type fastest-route">Fastest Route</span></td>
+                        <td>{{ report.routes[0].summary.lengthInMeters / 1000 | round(2) }} km</td>
+                        <td>
+                            {% if report.time.fastest.hours > 0 %}
+                                {{ report.time.fastest.hours }}h
+                            {% endif %}
+                            {{ report.time.fastest.minutes }}m
+                        </td>
+                        <td>{{ report.routes[0].summary.trafficDelayInSeconds // 60 }} min delay</td>
+                    </tr>
+                    <tr>
+                        <td><span class="route-type eco-route">Ecological Route</span></td>
+                        <td>{{ report.routes[1].summary.lengthInMeters / 1000 | round(2) }} km</td>
+                        <td>
+                            {% if report.time.eco.hours > 0 %}
+                                {{ report.time.eco.hours }}h
+                            {% endif %}
+                            {{ report.time.eco.minutes }}m
+                        </td>
+                        <td>{{ report.routes[1].summary.trafficDelayInSeconds // 60 }} min delay</td>
+                    </tr>
+                </table>
+                <div class="route-summary">
+                    <strong>Route Comparison:</strong> 
+                    {% if report.route_comparison.time_diff_minutes > 0 %}
+                        Eco route takes {{ report.route_comparison.time_diff_minutes }} minutes longer
+                    {% endif %}
+                    {% if report.route_comparison.distance_diff != 0 %}
+                        and is {{ (report.route_comparison.distance_diff) }} km 
+                        {% if report.route_comparison.distance_diff > 0 %}longer{% else %}shorter{% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <h3>Cost Breakdown</h3>
+            <table>
+                <tr>
+                    <th>Cost Type</th>
+                    <th>Per Kilometer</th>
+                    <th>Total Cost</th>
+                </tr>
+                <tr>
+                    <td>Fuel Cost</td>
+                    <td>₹{{ report.per_km.fuel }}</td>
+                    <td>₹{{ report.total.fuel }}</td>
+                </tr>
+                <tr>
+                    <td>Maintenance Cost</td>
+                    <td>₹{{ report.per_km.maintenance }}</td>
+                    <td>₹{{ report.total.maintenance }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td>Total</td>
+                    <td>₹{{ report.per_km.total }}</td>
+                    <td>₹{{ report.total.total }}</td>
+                </tr>
+            </table>
+
+            <h3>Weather Information</h3>
+            <table>
+                <tr>
+                    <th>Location</th>
+                    <th>Temperature (°C)</th>
+                    <th>Conditions</th>
+                    <th>Humidity (%)</th>
+                </tr>
+                <tr>
+                    <td>Start ({{ report.weather_start.name }})</td>
+                    <td>{{ report.weather_start.main.temp }}</td>
+                    <td>
+                        <img src="http://openweathermap.org/img/w/{{ report.weather_start.weather[0].icon }}.png" class="weather-icon">
+                        {{ report.weather_start.weather[0].description }}
+                    </td>
+                    <td>{{ report.weather_start.main.humidity }}</td>
+                </tr>
+                <tr>
+                    <td>End ({{ report.weather_end.name }})</td>
+                    <td>{{ report.weather_end.main.temp }}</td>
+                    <td>
+                        <img src="http://openweathermap.org/img/w/{{ report.weather_end.weather[0].icon }}.png" class="weather-icon">
+                        {{ report.weather_end.weather[0].description }}
+                    </td>
+                    <td>{{ report.weather_end.main.humidity }}</td>
+                </tr>
+            </table>
+
+            <h3>Route Map</h3>
+            <div id="map"></div>
+        </div>
+        {% endif %}
+    </div>
+   
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        {% if report %}
+        var map = L.map('map').setView([{{ report.weather_start.coord.lat }}, {{ report.weather_start.coord.lon }}], 10);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+        }).addTo(map);
+
+        var startCoords = [{{ report.weather_start.coord.lat }}, {{ report.weather_start.coord.lon }}];
+        var endCoords = [{{ report.weather_end.coord.lat }}, {{ report.weather_end.coord.lon }}];
+
+        L.marker(startCoords).addTo(map).bindPopup('Start').openPopup();
+        L.marker(endCoords).addTo(map).bindPopup('End');
+
+        // Draw routes
+        var routes = JSON.parse(`{{ report.routes | tojson | safe }}`);
+        routes.forEach((route) => {
+            var coordinates = route.legs[0].points.map(point => [point.latitude, point.longitude]);
+            L.polyline(coordinates, { color: route.color }).addTo(map);
+        });
+
+        // Add POIs along the route
+        var pois = JSON.parse(`{{ report.pois | tojson | safe }}`);
+        var placeIcons = {
+            'hotels': L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/619/619032.png', iconSize: [25, 25] }),
+            'restaurants': L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/857/857718.png', iconSize: [25, 25] }),
+            'fuel': L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2318/2318779.png', iconSize: [25, 25] })
+        };
+
+        for (var placeType in pois) {
+            pois[placeType].forEach(place => {
+                L.marker([place.position.lat, place.position.lon], { icon: placeIcons[placeType] })
+                    .addTo(map)
+                    .bindPopup(`${placeType}: ${place.poi.name}`);
+            });
+        }
+
+        // Highlight areas with bad weather
+        var weatherStart = JSON.parse(`{{ report.weather_start | tojson | safe }}`);
+        var weatherEnd = JSON.parse(`{{ report.weather_end | tojson | safe }}`);
+
+        if (weatherStart.weather[0].main.toLowerCase().includes('rain') || weatherStart.weather[0].main.toLowerCase().includes('storm')) {
+            L.circle(startCoords, { radius: 5000, color: 'red' }).addTo(map).bindPopup('Bad weather at start');
+        }
+
+        if (weatherEnd.weather[0].main.toLowerCase().includes('rain') || weatherEnd.weather[0].main.toLowerCase().includes('storm')) {
+            L.circle(endCoords, { radius: 5000, color: 'red' }).addTo(map).bindPopup('Bad weather at end');
+        }
+        {% endif %}
+    </script>
+</body>
+</html>
